@@ -1,0 +1,20 @@
+# Memory files (personal to each user)
+memory/*.md
+!memory/.gitkeep
+MEMORY.md
+ACTIVE_TASK.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
