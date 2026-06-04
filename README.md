@@ -84,7 +84,25 @@ your-project/
     validate.md      # QA validation workflow (UI/app testing como humano)
   tools/
     qa-crawl.js      # Crawler de QA (Playwright): botões, console, links, screenshots
+  .claude/
+    agents/
+      planner.md         # Planeja o build em fases e atribui cada fase a um especialista
+      db-engineer.md     # Banco de dados: schema, migrations, queries
+      backend-builder.md # API, lógica de negócio, funcionalidade
+      ui-builder.md      # Interface, componentes, estados, responsivo, acessível
+      qa-validator.md    # Valida o app rodando (usa tools/qa-crawl.js)
 ```
+
+## Orquestração automática (cascata)
+
+Você diz o objetivo **uma vez** — "faz um app de X" — e o framework conduz a cascata sozinho, sem você digitar comando a cada passo:
+
+```
+planner → db-engineer → backend-builder → ui-builder → qa-validator
+            (se a validação reprovar, volta automático pro agente que conserta)
+```
+
+O orquestrador (sessão principal) lê o plano em `ACTIVE_TASK.md` e delega cada fase ao subagente certo, na ordem de dependência, e valida no fim. O protocolo está em `CLAUDE.md` (seção ORCHESTRATION PROTOCOL) e os especialistas em `.claude/agents/`. Para pedidos pequenos (1 fix), ele resolve direto sem cascata.
 
 ## QA / Validação de App
 

@@ -192,6 +192,32 @@ Example: `commands/review.md` contains instructions for how to review code in th
 
 ---
 
+## ORCHESTRATION PROTOCOL (cascata automática)
+
+Você é o ORQUESTRADOR. Quando o usuário pedir pra **construir um app, site, feature ou funcionalidade** (ex: "faz um app de X", "cria a tela de Y", "adiciona o sistema de Z"), você NÃO sai codando e NÃO faz o usuário digitar comando nenhum. Você conduz uma cascata automática entre os subagentes especialistas (em `.claude/agents/`):
+
+- **planner** — planeja e quebra em fases
+- **db-engineer** — banco de dados / schema / migrations
+- **backend-builder** — API / lógica / funcionalidade
+- **ui-builder** — interface / componentes
+- **qa-validator** — valida o app rodando
+
+### O fluxo (faça isso sozinho, sem pedir comando ao usuário)
+1. **PLANEJAR.** Delegue ao subagente `planner`. Ele escreve o plano em fases no `ACTIVE_TASK.md`, com cada fase marcada com o agente responsável. Mostre o plano ao usuário em 1 parágrafo curto e siga (só pare se ele pedir ajuste).
+2. **EXECUTAR EM CASCATA.** Para cada fase do plano, EM ORDEM, delegue automaticamente ao agente marcado naquela fase (db-engineer → backend-builder → ui-builder, conforme o plano). Passe pro subagente o contexto da fase e o que as fases anteriores entregaram. Ao terminar cada fase, marque o checkbox no ACTIVE_TASK.md.
+3. **VALIDAR.** Ao fim das fases de build, delegue ao `qa-validator`. Se ele reprovar, ROTEIE o conserto de volta pro agente certo (UI quebrada → ui-builder; erro de API → backend-builder; dado errado → db-engineer) e valide de novo. Repita até passar ou travar.
+4. **ENTREGAR.** Quando passar na validação e bater a Definition of Done, resuma o que foi feito e registre na memória.
+
+### Regras da orquestração
+- **Não exija slash commands.** O usuário diz o objetivo uma vez; você navega entre os agentes sozinho conforme a etapa.
+- **Uma fase por vez, em ordem de dependência.** Não builde UI antes do dado/endpoint que ela usa existir.
+- **Pare pro usuário só em decisão real** (escolha que muda o projeto) — respeitando o "máximo 1 pergunta". Senão, decida e siga.
+- **Estado sempre no ACTIVE_TASK.md** entre as fases, pra a cascata sobreviver a um restart de sessão (retoma da fase não-concluída).
+- Pedido pequeno (1 arquivo, 1 fix) NÃO precisa de cascata — resolva direto. A cascata é pra construção de app/feature de verdade.
+- Os comandos manuais (`commands/*.md`) seguem disponíveis pra disparar um passo específico na mão.
+
+---
+
 ## PROJECT CONTEXT
 
 <!-- Add your project-specific context below. Examples: -->
