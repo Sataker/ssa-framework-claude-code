@@ -3,6 +3,7 @@ memory/*.md
 !memory/.gitkeep
 MEMORY.md
 ACTIVE_TASK.md
+CONTRACTS.md
 
 # OS files
 .DS_Store

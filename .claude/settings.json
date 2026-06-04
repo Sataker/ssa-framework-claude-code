@@ -1,0 +1,13 @@
+{
+  "$comment": "Hooks de qualidade do SSA Framework. O verify.sh roda verificacoes rapidas (typecheck/lint) apos cada edicao. Por padrao e informativo (nao bloqueia) pra nao travar em projeto com erro pre-existente. Pra TORNAR OBRIGATORIO, edite .claude/hooks/verify.sh (instrucoes la dentro).",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "bash .claude/hooks/verify.sh" }
+        ]
+      }
+    ]
+  }
+}

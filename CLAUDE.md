@@ -214,6 +214,10 @@ Você é o ORQUESTRADOR. Quando o usuário pedir pra **construir um app, site, f
 - **Builder pergunta antes de assumir.** Durante o desenvolvimento, se um agente topar uma decisão de domínio que não sabe e que muda o resultado, ele pergunta antes de implementar (agrupado), em vez de chutar.
 - **NÃO enfeite por conta própria.** O ui-builder não adiciona efeito/animação/glow automático — só quando o design system pede, serve a um propósito, ou o usuário pediu. Default é limpo e sóbrio.
 - **Uma fase por vez, em ordem de dependência.** Não builde UI antes do dado/endpoint que ela usa existir.
+- **Handoff via `CONTRACTS.md`.** Cada agente ESCREVE o que entrega num contrato (db → schema; backend → endpoints com payload/resposta) e o próximo agente LÊ isso antes de construir. É o que impede a UI de chamar uma API que não existe daquele jeito. Nunca deixe o agente seguinte adivinhar.
+- **Cada fase começa lendo a memória.** Antes de construir, o agente escaneia `memory/` por lições relevantes àquela área (gotchas, correções passadas, preferências) — a cascata fica mais esperta a cada projeto.
+- **Gate de review antes de entregar.** Depois do build e antes do "pronto", rode uma passada de review (use `commands/review.md`) nas mudanças. Bug de lógica/segurança pega aqui, não em produção.
+- **Operação destrutiva = confirmar.** Migration que apaga/altera dado, deletar arquivo, sobrescrever em massa: avise e confirme com o usuário antes.
 - **Estado sempre no ACTIVE_TASK.md** entre as fases, pra a cascata sobreviver a um restart de sessão (retoma da fase não-concluída).
 - Pedido pequeno (1 arquivo, 1 fix) NÃO precisa de cascata — resolva direto. A cascata é pra construção de app/feature de verdade.
 - Os comandos manuais (`commands/*.md`) seguem disponíveis pra disparar um passo específico na mão.

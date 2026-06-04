@@ -104,6 +104,17 @@ planner → db-engineer → backend-builder → ui-builder → qa-validator
 
 O orquestrador (sessão principal) lê o plano em `ACTIVE_TASK.md` e delega cada fase ao subagente certo, na ordem de dependência, e valida no fim. O protocolo está em `CLAUDE.md` (seção ORCHESTRATION PROTOCOL) e os especialistas em `.claude/agents/`. Para pedidos pequenos (1 fix), ele resolve direto sem cascata.
 
+### Como os agentes não se perdem entre si
+- **`CONTRACTS.md`** — handoff entre fases: o db-engineer escreve o schema, o backend escreve os endpoints (payload/resposta), e o ui-builder lê esse contrato antes de construir. Sem isso, a UI adivinha a API e quebra.
+- **Memória no início de cada fase** — cada agente lê `memory/` por lições do projeto antes de construir; o qa-validator transforma bug recorrente em regra. A cascata fica mais esperta a cada projeto.
+- **Gate de review + confirmação em operação destrutiva** antes de declarar pronto.
+
+### Qualidade automática (hooks)
+`.claude/settings.json` + `.claude/hooks/verify.sh` rodam typecheck/lint **após cada edição** (detecta a stack sozinho). Por padrão é informativo; dá pra tornar obrigatório (instruções no `verify.sh`). Assim cada fase já sai verificada antes de passar pra próxima.
+
+### Validação roda sozinha
+O `qa-validator` **sobe o dev server**, espera a porta responder, roda o crawler, analisa e derruba o servidor — você não precisa ligar o app na mão.
+
 ## QA / Validação de App
 
 O comando `validate` testa um app web rodando como um QA humano: abre num navegador controlado, clica nos botões, captura erros de console, requisições quebradas (4xx/5xx), links mortos e layout no mobile, tira screenshots — e o Claude lê tudo e dá o veredito (🔴 quebrado / 🟡 suspeito / 🟢 ok).
