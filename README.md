@@ -81,7 +81,21 @@ your-project/
     refactor.md      # Refactoring workflow
     test.md          # Test writing workflow
     document.md      # Documentation workflow
+    validate.md      # QA validation workflow (UI/app testing como humano)
+  tools/
+    qa-crawl.js      # Crawler de QA (Playwright): botões, console, links, screenshots
 ```
+
+## QA / Validação de App
+
+O comando `validate` testa um app web rodando como um QA humano: abre num navegador controlado, clica nos botões, captura erros de console, requisições quebradas (4xx/5xx), links mortos e layout no mobile, tira screenshots — e o Claude lê tudo e dá o veredito (🔴 quebrado / 🟡 suspeito / 🟢 ok).
+
+```bash
+# requisitos: Chromium instalado + npm install playwright-core
+node tools/qa-crawl.js --url https://seu-app.com --max 25
+# depois: peça ao Claude "valida o app" e ele analisa o relatório + screenshots
+```
+Roda isso antes de cada deploy pra pegar regressão (tela quebrada, botão morto) em ~30s.
 
 ## How Memory Works
 
