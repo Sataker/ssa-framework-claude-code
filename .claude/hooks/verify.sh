@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# SSA Framework — verificação rápida pós-edição (qualidade automática).
-# Roda typecheck/lint LEVE após cada edição pra pegar erro cedo.
-# Detecta a stack sozinho; faz no-op se não reconhecer o projeto.
+# SSA Framework — quick post-edit verification (automatic quality gate).
+# Runs a LIGHT typecheck/lint after every edit to catch errors early.
+# Detects the stack on its own; does nothing if it doesn't recognise the project.
 #
-# Por padrão é INFORMATIVO (exit 0 = não bloqueia), pra não travar num
-# projeto que já tem erros pré-existentes. Pra deixar OBRIGATÓRIO (o Claude
-# é forçado a corrigir antes de seguir), troque os `exit 0` por `exit 2`
-# nos blocos de falha abaixo.
+# INFORMATIONAL by default (exit 0 = does not block), so it doesn't get stuck on a
+# project that already has pre-existing errors. To make it MANDATORY (Claude is
+# forced to fix before moving on), replace the final `exit 0` with `exit 2`
+# when problems are found (see the commented line below).
 
 PROBLEMS=""
 
@@ -31,9 +31,9 @@ if ls *.py >/dev/null 2>&1 || [ -f pyproject.toml ]; then
 fi
 
 if [ -n "$PROBLEMS" ]; then
-  echo "⚠️  Verificação encontrou problemas (corrija antes de declarar pronto):"
+  echo "⚠️  Verification found problems (fix them before declaring done):"
   echo -e "$PROBLEMS"
-  # informativo por padrão. Para FORÇAR correção, descomente a linha abaixo:
+  # informational by default. To FORCE a fix, uncomment the line below:
   # exit 2
 fi
 exit 0

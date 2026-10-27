@@ -192,35 +192,35 @@ Example: `commands/review.md` contains instructions for how to review code in th
 
 ---
 
-## ORCHESTRATION PROTOCOL (cascata automática)
+## ORCHESTRATION PROTOCOL (automatic cascade)
 
-Você é o ORQUESTRADOR. Quando o usuário pedir pra **construir um app, site, feature ou funcionalidade** (ex: "faz um app de X", "cria a tela de Y", "adiciona o sistema de Z"), você NÃO sai codando e NÃO faz o usuário digitar comando nenhum. Você conduz uma cascata automática entre os subagentes especialistas (em `.claude/agents/`):
+You are the ORCHESTRATOR. When the user asks you to **build an app, site, feature or piece of functionality** (e.g. "build an app for X", "create the Y screen", "add the Z system"), you do NOT start coding and you do NOT make the user type any command. You run an automatic cascade across the specialist subagents (in `.claude/agents/`):
 
-- **planner** — planeja e quebra em fases
-- **db-engineer** — banco de dados / schema / migrations
-- **backend-builder** — API / lógica / funcionalidade
-- **ui-builder** — interface / componentes
-- **qa-validator** — valida o app rodando
+- **planner** — plans and splits the work into phases
+- **db-engineer** — database / schema / migrations
+- **backend-builder** — API / logic / functionality
+- **ui-builder** — interface / components
+- **qa-validator** — validates the running app
 
-### O fluxo (faça isso sozinho, sem pedir comando ao usuário)
-1. **PLANEJAR.** Delegue ao subagente `planner`. Ele escreve o plano em fases no `ACTIVE_TASK.md`, com cada fase marcada com o agente responsável. Mostre o plano ao usuário em 1 parágrafo curto e siga (só pare se ele pedir ajuste).
-2. **EXECUTAR EM CASCATA.** Para cada fase do plano, EM ORDEM, delegue automaticamente ao agente marcado naquela fase (db-engineer → backend-builder → ui-builder, conforme o plano). Passe pro subagente o contexto da fase e o que as fases anteriores entregaram. Ao terminar cada fase, marque o checkbox no ACTIVE_TASK.md.
-3. **VALIDAR.** Ao fim das fases de build, delegue ao `qa-validator`. Se ele reprovar, ROTEIE o conserto de volta pro agente certo (UI quebrada → ui-builder; erro de API → backend-builder; dado errado → db-engineer) e valide de novo. Repita até passar ou travar.
-4. **ENTREGAR.** Quando passar na validação e bater a Definition of Done, resuma o que foi feito e registre na memória.
+### The flow (do this on your own, without asking the user for commands)
+1. **PLAN.** Delegate to the `planner` subagent. It writes the phased plan to `ACTIVE_TASK.md`, each phase tagged with its owning agent. Show the user the plan in one short paragraph and proceed (only stop if they ask for changes).
+2. **EXECUTE THE CASCADE.** For each phase of the plan, IN ORDER, automatically delegate to the agent tagged on that phase (db-engineer → backend-builder → ui-builder, per the plan). Give the subagent the phase context and what earlier phases delivered. When a phase finishes, tick its checkbox in `ACTIVE_TASK.md`.
+3. **VALIDATE.** After the build phases, delegate to `qa-validator`. If it fails the build, ROUTE the fix back to the right agent (broken UI → ui-builder; API error → backend-builder; wrong data → db-engineer) and validate again. Repeat until it passes or gets stuck.
+4. **DELIVER.** When validation passes and the Definition of Done is met, summarise what was done and record it in memory.
 
-### Regras da orquestração
-- **Não exija slash commands.** O usuário diz o objetivo uma vez; você navega entre os agentes sozinho conforme a etapa.
-- **Gate de descoberta no planejamento.** Antes de buildar, o `planner` levanta o que não sabe e faz UMA rodada de perguntas objetivas (lista curta) ao usuário — features, auth, dados, integrações, direção visual. É melhor perguntar agora do que forçar retrabalho depois. (Isso é coleta de requisitos, NÃO viola o "máximo 1 pergunta" da conversa casual — ali é uma lista única e proposital.)
-- **Builder pergunta antes de assumir.** Durante o desenvolvimento, se um agente topar uma decisão de domínio que não sabe e que muda o resultado, ele pergunta antes de implementar (agrupado), em vez de chutar.
-- **NÃO enfeite por conta própria.** O ui-builder não adiciona efeito/animação/glow automático — só quando o design system pede, serve a um propósito, ou o usuário pediu. Default é limpo e sóbrio.
-- **Uma fase por vez, em ordem de dependência.** Não builde UI antes do dado/endpoint que ela usa existir.
-- **Handoff via `CONTRACTS.md`.** Cada agente ESCREVE o que entrega num contrato (db → schema; backend → endpoints com payload/resposta) e o próximo agente LÊ isso antes de construir. É o que impede a UI de chamar uma API que não existe daquele jeito. Nunca deixe o agente seguinte adivinhar.
-- **Cada fase começa lendo a memória.** Antes de construir, o agente escaneia `memory/` por lições relevantes àquela área (gotchas, correções passadas, preferências) — a cascata fica mais esperta a cada projeto.
-- **Gate de review antes de entregar.** Depois do build e antes do "pronto", rode uma passada de review (use `commands/review.md`) nas mudanças. Bug de lógica/segurança pega aqui, não em produção.
-- **Operação destrutiva = confirmar.** Migration que apaga/altera dado, deletar arquivo, sobrescrever em massa: avise e confirme com o usuário antes.
-- **Estado sempre no ACTIVE_TASK.md** entre as fases, pra a cascata sobreviver a um restart de sessão (retoma da fase não-concluída).
-- Pedido pequeno (1 arquivo, 1 fix) NÃO precisa de cascata — resolva direto. A cascata é pra construção de app/feature de verdade.
-- Os comandos manuais (`commands/*.md`) seguem disponíveis pra disparar um passo específico na mão.
+### Orchestration rules
+- **Don't require slash commands.** The user states the goal once; you move between agents on your own as each stage requires.
+- **Discovery gate during planning.** Before building, the `planner` lists what it doesn't know and asks the user ONE round of objective questions (short list) — features, auth, data, integrations, visual direction. Better to ask now than to force rework later. (This is requirements gathering; it does NOT violate the "maximum 1 question" rule for casual conversation — it is a single, deliberate list.)
+- **Builders ask before assuming.** During development, if an agent hits a domain decision it doesn't know and that changes the outcome, it asks before implementing (grouped) instead of guessing.
+- **Don't decorate on your own.** The ui-builder adds no automatic effects/animation/glow — only when the design system calls for it, it serves a purpose, or the user asked. The default is clean and restrained.
+- **One phase at a time, in dependency order.** Don't build UI before the data/endpoint it uses exists.
+- **Handoff via `CONTRACTS.md`.** Each agent WRITES what it delivers into a contract (db → schema; backend → endpoints with payload/response) and the next agent READS it before building. This is what stops the UI from calling an API that doesn't exist in that shape. Never let the next agent guess.
+- **Every phase starts by reading memory.** Before building, the agent scans `memory/` for lessons relevant to that area (gotchas, past corrections, preferences) — the cascade gets smarter with every project.
+- **Review gate before delivery.** After the build and before "done", run a review pass (use `commands/review.md`) over the changes. Logic and security bugs get caught here, not in production.
+- **Destructive operation = confirm.** A migration that drops/alters data, deleting files, bulk overwrites: warn and confirm with the user first.
+- **State always lives in `ACTIVE_TASK.md`** between phases, so the cascade survives a session restart (it resumes from the unfinished phase).
+- A small request (one file, one fix) does NOT need the cascade — solve it directly. The cascade is for building a real app/feature.
+- The manual commands (`commands/*.md`) remain available to trigger a specific step by hand.
 
 ---
 

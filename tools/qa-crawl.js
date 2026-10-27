@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /*
- * QA Crawler — coleta determinística de fatos sobre um app web.
- * Abre a URL num Chrome controlado, captura erros de console, requisições
- * quebradas, clica nos elementos interativos, testa desktop + mobile e
- * salva screenshots + um relatório JSON/MD.
+ * QA Crawler — deterministic fact collection for a web app.
+ * Opens the URL in a controlled Chromium, captures console errors and failed
+ * requests, clicks every interactive element, tests desktop + mobile and
+ * saves screenshots plus a JSON/Markdown report.
  *
- * Uso:
- *   node qa-crawl.js --url https://seu-app.com [--max 25] [--no-mobile]
+ * Usage:
+ *   node tools/qa-crawl.js --url https://your-app.com [--max 25] [--no-mobile]
  *
- * Requer Chrome/Chromium. Por padrao usa o do sistema (CHROMIUM_PATH ou
- * /usr/bin/chromium). Pode apontar pra outro com CHROMIUM_PATH=/caminho.
+ * Requires Chrome/Chromium. Defaults to /usr/bin/chromium; override with
+ * CHROMIUM_PATH=/path/to/chromium. Reports go to ./reports/<host>_<timestamp>/.
  */
 const { chromium } = require('playwright-core');
 const fs = require('fs');
@@ -22,25 +22,25 @@ function arg(name, def) {
   return (!v || v.startsWith('--')) ? true : v;
 }
 
-const URL = arg('url');
+const TARGET_URL = arg('url');
 const MAX_CLICKS = parseInt(arg('max', 25), 10);
 const DO_MOBILE = !arg('no-mobile', false);
 const CHROMIUM = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 
-if (!URL) {
-  console.error('uso: node qa-crawl.js --url https://seu-app.com [--max 25] [--no-mobile]');
+if (!TARGET_URL) {
+  console.error('usage: node tools/qa-crawl.js --url https://your-app.com [--max 25] [--no-mobile]');
   process.exit(1);
 }
 
 const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const host = URL.replace(/^https?:\/\//, '').replace(/[^\w.-]/g, '_').slice(0, 40);
-const outDir = path.join(__dirname, 'reports', `${host}_${ts}`);
+const host = TARGET_URL.replace(/^https?:\/\//, '').replace(/[^\w.-]/g, '_').slice(0, 40);
+const outDir = path.join(process.cwd(), 'reports', `${host}_${ts}`);
 fs.mkdirSync(outDir, { recursive: true });
 
 const report = {
-  url: URL,
+  url: TARGET_URL,
   startedAt: new Date().toISOString(),
-  pages: {},          // por viewport: desktop / mobile
+  pages: {},          // per viewport: desktop / mobile
   consoleErrors: [],
   pageErrors: [],
   failedRequests: [],
@@ -68,7 +68,7 @@ function attachListeners(page, label) {
   });
 }
 
-// rola a pagina inteira em passos pra disparar lazy-load / animacoes de revelar no scroll
+// scroll the whole page in steps to trigger lazy-load and scroll-reveal animations
 async function autoScroll(page) {
   await page.evaluate(async () => {
     await new Promise(resolve => {
@@ -97,7 +97,7 @@ async function shot(page, name) {
 }
 
 async function run() {
-  console.log(`[qa] abrindo ${URL} com ${CHROMIUM}`);
+  console.log(`[qa] opening ${TARGET_URL} with ${CHROMIUM}`);
   const browser = await chromium.launch({ headless: true, executablePath: CHROMIUM, args: ['--no-sandbox'] });
 
   // ---------- DESKTOP ----------
@@ -105,7 +105,7 @@ async function run() {
   const page = await ctx.newPage();
   attachListeners(page, 'desktop');
 
-  const resp = await page.goto(URL, { waitUntil: 'networkidle', timeout: 45000 }).catch(e => ({ err: e.message }));
+  const resp = await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 45000 }).catch(e => ({ err: e.message }));
   await page.waitForTimeout(1500);
   report.pages.desktop = {
     finalUrl: page.url(),
@@ -114,7 +114,7 @@ async function run() {
   };
   await shot(page, 'desktop-home');
 
-  // descobrir elementos interativos
+  // discover interactive elements
   const inventory = await page.evaluate(() => {
     const q = sel => Array.from(document.querySelectorAll(sel));
     const visible = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
@@ -127,7 +127,7 @@ async function run() {
   });
   report.pages.desktop.inventory = { buttons: inventory.buttons.length, links: inventory.links.length, inputs: inventory.inputs };
 
-  // testar cliques nos botoes (com reset entre cada um)
+  // click each button (resetting the page between clicks)
   const btnLabels = inventory.buttons.slice(0, MAX_CLICKS);
   for (let i = 0; i < btnLabels.length; i++) {
     const before = report.consoleErrors.length + report.pageErrors.length;
@@ -135,30 +135,31 @@ async function run() {
     try {
       const handles = await page.$$('button, [role=button], input[type=submit], input[type=button]');
       if (handles[i]) {
-        await handles[i].click({ timeout: 4000 }).catch(() => { result = 'nao-clicavel'; });
+        await handles[i].click({ timeout: 4000 }).catch(() => { result = 'not-clickable'; });
         await page.waitForTimeout(800);
       }
-    } catch (e) { result = 'erro: ' + e.message.slice(0, 80); }
+    } catch (e) { result = 'error: ' + e.message.slice(0, 80); }
     const after = report.consoleErrors.length + report.pageErrors.length;
-    if (after > before && result === 'ok') result = 'gerou-erro-no-console';
-    report.buttonsTested.push({ index: i, label: btnLabels[i] || '(sem texto)', result });
-    // reset pro estado inicial
-    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+    if (after > before && result === 'ok') result = 'caused-console-error';
+    report.buttonsTested.push({ index: i, label: btnLabels[i] || '(no text)', result });
+    // back to the initial state
+    await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
     await page.waitForTimeout(500);
   }
 
-  // checar links internos quebrados (status >= 400) via requisicao
+  // check links for broken targets (status >= 400)
   const internal = inventory.links
     .map(l => l.href)
     .filter(h => h && !h.startsWith('#') && !h.startsWith('mailto:') && !h.startsWith('tel:'))
-    .map(h => { try { return new URL(h, URL).href; } catch { return null; } })
+    .map(h => { try { return new URL(h, TARGET_URL).href; } catch { return null; } })
     .filter(Boolean);
   const uniqueLinks = [...new Set(internal)].slice(0, 30);
   for (const link of uniqueLinks) {
     try {
       const r = await ctx.request.get(link, { timeout: 10000 });
-      if (r.status() >= 400) report.brokenLinks.push({ url: link, status: r.status() });
-    } catch (e) { report.brokenLinks.push({ url: link, status: 'falhou: ' + e.message.slice(0, 60) }); }
+      // 429 = rate limited by the target site, not a broken link
+      if (r.status() >= 400 && r.status() !== 429) report.brokenLinks.push({ url: link, status: r.status() });
+    } catch (e) { report.brokenLinks.push({ url: link, status: 'failed: ' + e.message.slice(0, 60) }); }
   }
 
   await ctx.close();
@@ -168,9 +169,9 @@ async function run() {
     const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' });
     const mpage = await mctx.newPage();
     attachListeners(mpage, 'mobile');
-    await mpage.goto(URL, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
+    await mpage.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
     await mpage.waitForTimeout(1500);
-    // detectar overflow horizontal (layout quebrado no mobile)
+    // detect horizontal overflow (broken mobile layout)
     const overflow = await mpage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 4);
     report.pages.mobile = { finalUrl: mpage.url(), overflowHorizontal: overflow };
     await shot(mpage, 'mobile-home');
@@ -179,41 +180,41 @@ async function run() {
 
   await browser.close();
 
-  // ---------- SUMARIO ----------
+  // ---------- SUMMARY ----------
   report.summary = {
     consoleErrors: report.consoleErrors.length,
     pageErrors: report.pageErrors.length,
     failedRequests: report.failedRequests.length,
     brokenLinks: report.brokenLinks.length,
-    buttonsComProblema: report.buttonsTested.filter(b => b.result !== 'ok').length,
-    botoesTestados: report.buttonsTested.length,
+    buttonsWithIssues: report.buttonsTested.filter(b => b.result !== 'ok').length,
+    buttonsTested: report.buttonsTested.length,
     mobileOverflow: report.pages.mobile?.overflowHorizontal || false
   };
   report.finishedAt = new Date().toISOString();
 
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(outDir, 'report.md'), toMarkdown(report));
-  console.log('[qa] relatorio salvo em', outDir);
-  console.log('[qa] resumo:', JSON.stringify(report.summary));
+  console.log('[qa] report saved to', outDir);
+  console.log('[qa] summary:', JSON.stringify(report.summary));
 }
 
 function toMarkdown(r) {
   const L = [];
-  L.push(`# Relatório de QA — ${r.url}`);
-  L.push(`Rodado: ${r.startedAt}\n`);
-  L.push(`## Resumo`);
+  L.push(`# QA Report — ${r.url}`);
+  L.push(`Run at: ${r.startedAt}\n`);
+  L.push(`## Summary`);
   for (const [k, v] of Object.entries(r.summary)) L.push(`- ${k}: ${v}`);
-  L.push(`\n## Páginas`);
+  L.push(`\n## Pages`);
   L.push('```json\n' + JSON.stringify(r.pages, null, 2) + '\n```');
-  if (r.consoleErrors.length) { L.push(`\n## Erros de console (${r.consoleErrors.length})`); r.consoleErrors.slice(0, 20).forEach(e => L.push(`- [${e.where}] ${e.text}`)); }
-  if (r.pageErrors.length) { L.push(`\n## Erros de página/JS (${r.pageErrors.length})`); r.pageErrors.slice(0, 20).forEach(e => L.push(`- [${e.where}] ${e.text}`)); }
-  if (r.failedRequests.length) { L.push(`\n## Requisições falhas (${r.failedRequests.length})`); r.failedRequests.slice(0, 25).forEach(e => L.push(`- [${e.where}] ${e.status || e.reason} — ${e.url}`)); }
-  if (r.brokenLinks.length) { L.push(`\n## Links quebrados (${r.brokenLinks.length})`); r.brokenLinks.forEach(e => L.push(`- ${e.status} — ${e.url}`)); }
-  L.push(`\n## Botões testados (${r.buttonsTested.length})`);
+  if (r.consoleErrors.length) { L.push(`\n## Console errors (${r.consoleErrors.length})`); r.consoleErrors.slice(0, 20).forEach(e => L.push(`- [${e.where}] ${e.text}`)); }
+  if (r.pageErrors.length) { L.push(`\n## Page / JS errors (${r.pageErrors.length})`); r.pageErrors.slice(0, 20).forEach(e => L.push(`- [${e.where}] ${e.text}`)); }
+  if (r.failedRequests.length) { L.push(`\n## Failed requests (${r.failedRequests.length})`); r.failedRequests.slice(0, 25).forEach(e => L.push(`- [${e.where}] ${e.status || e.reason} — ${e.url}`)); }
+  if (r.brokenLinks.length) { L.push(`\n## Broken links (${r.brokenLinks.length})`); r.brokenLinks.forEach(e => L.push(`- ${e.status} — ${e.url}`)); }
+  L.push(`\n## Buttons tested (${r.buttonsTested.length})`);
   r.buttonsTested.forEach(b => L.push(`- [${b.result}] ${b.label}`));
   L.push(`\n## Screenshots`);
   r.screenshots.forEach(s => L.push(`- ${s}`));
   return L.join('\n');
 }
 
-run().catch(e => { console.error('[qa] falhou:', e.message); process.exit(1); });
+run().catch(e => { console.error('[qa] failed:', e.message); process.exit(1); });

@@ -1,33 +1,33 @@
-# Validate App (QA como humano)
+# Validate App (QA like a human)
 
-Valida uma aplicação web rodando-a num navegador controlado e analisando o resultado como um QA humano faria. Use quando o usuário pedir pra testar/validar um app, página ou fluxo ("valida meu app", "vê se os botões funcionam", "roda um QA nesse site").
+Validates a web application by running it in a controlled browser and analysing the result the way a human QA would. Use it when the user asks to test or validate an app, page or flow ("validate my app", "check that the buttons work", "run QA on this site").
 
-Arquitetura em duas camadas: um **crawler determinístico** (`tools/qa-crawl.js`) coleta os fatos, e **você** faz o julgamento visual.
+Two-layer architecture: a **deterministic crawler** (`tools/qa-crawl.js`) collects the facts, and **you** make the visual judgement.
 
-## Setup (uma vez por projeto)
-- Requer **Chromium/Chrome** instalado. Aponte com `CHROMIUM_PATH=/usr/bin/chromium` se não estiver no padrão.
-- Requer `playwright-core`: `npm install playwright-core` (ou já estar nas deps do projeto).
+## Setup (once per project)
+- Requires **Chromium/Chrome**. Point to it with `CHROMIUM_PATH=/usr/bin/chromium` if it is not in the default location.
+- Requires `playwright-core`: `npm install playwright-core` (or already in the project's dependencies).
 
 ## Steps
-1. **Confirme a URL** do app com o usuário (ex: `https://meu-app.com`).
-2. **Rode o crawler:**
+1. **Confirm the app URL** with the user (e.g. `https://my-app.com`).
+2. **Run the crawler:**
    ```bash
    node tools/qa-crawl.js --url <URL> --max 25
    ```
-   Opções: `--max N` (quantos botões clicar), `--no-mobile` (pula viewport mobile).
-3. **Leia o relatório** gerado em `reports/<host>_<timestamp>/report.md` — resumo de erros de console, requisições falhas (4xx/5xx), links quebrados, botões com problema, overflow no mobile.
-4. **Olhe os screenshots** (`desktop-home.png`, `mobile-home.png`) com o tool Read (visão). Procure: seções em branco/não carregadas, layout quebrado, texto cortado/sobreposto, imagens quebradas, overflow no mobile.
-5. **Dê o veredito** classificando cada achado.
+   Options: `--max N` (how many buttons to click), `--no-mobile` (skip the mobile viewport).
+3. **Read the report** at `reports/<host>_<timestamp>/report.md` — console errors, failed requests (4xx/5xx), broken links, problematic buttons, mobile overflow.
+4. **Look at the screenshots** (`desktop-home.png`, `mobile-home.png`) with the Read tool (vision). Look for blank or unloaded sections, broken layout, cut-off or overlapping text, broken images, mobile overflow.
+5. **Give the verdict**, classifying each finding.
 
 ## Output Format
-- 🔴 **Quebrado** (corrigir): erro de JS, botão morto, link 404, requisição 5xx, seção que não carrega
-- 🟡 **Suspeito** (conferir): bloco vazio que pode ser vídeo/lazy-load, layout estranho
-- 🟢 **Ok:** o que funcionou
-Termine com um veredito geral: aprovado pra deploy, ou precisa de correção.
+- 🔴 **Broken** (fix): JS error, dead button, 404 link, 5xx request, section that doesn't load
+- 🟡 **Suspicious** (check): empty block that may be video/lazy-load, odd layout
+- 🟢 **OK:** what worked
+End with an overall verdict: approved for deploy, or needs fixes.
 
 ## Rules
-- Seja honesto sobre os limites — você pode errar como um humano cansado. Aponte o que merece olho humano, não afirme 100%.
-- Bloco preto/vazio num screenshot pode ser: (a) vídeo que não renderiza em headless (normal); (b) animação de scroll (o crawler já rola a página); (c) bug real de carregamento. Diga qual você suspeita.
-- Priorize bugs concretos (console, requisição falha, link quebrado) sobre suspeitas visuais.
-- Para fluxos críticos (login, pagamento, checkout), recomende também um teste determinístico fixo — este QA complementa, não substitui.
-- Registre na memória (MEMORY.md) bugs recorrentes que esse app costuma ter, pra acelerar validações futuras.
+- Be honest about limits — you can miss things like a tired human. Point out what deserves a human look; don't claim 100%.
+- A black/empty block in a screenshot can be: (a) a video that doesn't render headless (normal); (b) a scroll animation (the crawler already scrolls the page); (c) a real loading bug. Say which you suspect.
+- Prioritise concrete bugs (console, failed request, broken link) over visual suspicions.
+- For critical flows (login, payment, checkout), also recommend a fixed deterministic test — this QA complements it, it doesn't replace it.
+- Record in memory (`MEMORY.md`) the recurring bugs this app tends to have, to speed up future validations.
